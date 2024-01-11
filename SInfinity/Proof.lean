@@ -21,50 +21,58 @@ theorem fromNat {n : Nat} : NoVars (Sinf_term.fromNat n) := by
 end NoVars
 
 inductive Sinf_proof : List Sinf → Sinf → Prop where
-  | S_axiom : ∀ {θ₁ θ₂ Γ},
+  | S_axiom : ∀ {θ₁ θ₂ Δ},
               NoVars θ₁ →
               NoVars θ₂ →
               Sinf_term.eval θ₁ Std.AssocList.nil = Sinf_term.eval θ₂ Std.AssocList.nil →
-              Sinf_proof Γ (θ₁ =ₛ θ₂)
-  | S_axiom_neg : ∀ {θ₁ θ₂ Γ},
+              Sinf_proof Δ (θ₁ =ₛ θ₂)
+  | S_axiom_neg : ∀ {θ₁ θ₂ Δ},
                   NoVars θ₁ →
                   NoVars θ₂ →
                   Sinf_term.eval θ₁ Std.AssocList.nil ≠ Sinf_term.eval θ₂ Std.AssocList.nil →
-                  Sinf_proof Γ (¬ₛ θ₁ =ₛ θ₂)
+                  Sinf_proof Δ (¬ₛ θ₁ =ₛ θ₂)
 
-  | S_inr : ∀ α {β Γ},
-            Sinf_proof Γ β →
-            Sinf_proof Γ (α ∨ₛ β)
-  | S_de_morgan : ∀ {α β Γ},
-                  Sinf_proof Γ (¬ₛ α) →
-                  Sinf_proof Γ (¬ₛ β) →
-                  Sinf_proof Γ (¬ₛ (α ∨ₛ β))
-  | S_dni : ∀ {α Γ},
-            Sinf_proof Γ α →
-            Sinf_proof Γ (¬ₛ ¬ₛ α)
-  | S_neg_forall : ∀ {α x θ Γ},
-                   Sinf_proof Γ (¬ₛ α [x ≔ θ]) →
-                   Sinf_proof Γ (¬ₛ (∀ₛ x ; α))
+  | S_weakening : ∀ α {δ Δ},
+                  Sinf_proof Δ δ →
+                  Sinf_proof (δ :: Δ) α
+  | S_de_morgan : ∀ {α β Δ},
+                  Sinf_proof Δ (¬ₛ α) →
+                  Sinf_proof Δ (¬ₛ β) →
+                  Sinf_proof Δ (¬ₛ (α ∨ₛ β))
+  | S_dni : ∀ {α Δ},
+            Sinf_proof Δ α →
+            Sinf_proof Δ (¬ₛ ¬ₛ α)
+  | S_neg_forall : ∀ {α x θ Δ},
+                   Sinf_proof Δ (¬ₛ α [x ≔ θ]) →
+                   Sinf_proof Δ (¬ₛ (∀ₛ x ; α))
 
-  | S_induction : ∀ {α x Γ},
-                  (∀ n : Nat, Sinf_proof Γ (α [x ≔ n])) →
-                  Sinf_proof Γ (∀ₛ x ; α)
-  | S_section : ∀ {ζ} α {δ} {Γ},
-                Sinf_proof Γ (ζ ∨ₛ α) →
-                Sinf_proof Γ (¬ₛ α ∨ₛ δ) →
-                Sinf_proof Γ (ζ ∨ₛ δ)
+  | S_induction : ∀ {α x Δ},
+                  (∀ n : Nat, Sinf_proof Δ (α [x ≔ n])) →
+                  Sinf_proof Δ (∀ₛ x ; α)
+  | S_section : ∀ {ζ} α {δ} {Δ},
+                Sinf_proof Δ (ζ ∨ₛ α) →
+                Sinf_proof Δ (¬ₛ α ∨ₛ δ) →
+                Sinf_proof Δ (ζ ∨ₛ δ)
 
-axiom S_out : ∀ {α γ Γ},
-              Sinf_proof (γ :: Γ) α →
-              Sinf_proof Γ (γ ∨ₛ α)
-axiom S_in : ∀ {α γ Γ},
-             Sinf_proof Γ (γ ∨ₛ α) →
-             Sinf_proof (γ :: Γ) α
-axiom S_exchange_ctx : ∀ {α γ Γ},
-                       Sinf_proof (γ :: Γ) α →
-                       Sinf_proof (α :: Γ) γ
-axiom S_contraction_ctx : ∀ {α Γ},
-                          Sinf_proof (α :: Γ) α →
-                          Sinf_proof Γ α
+axiom S_join : ∀ {α δ₁ δ₂ Δ},
+               Sinf_proof (δ₂ :: δ₁ :: Δ) α →
+               Sinf_proof ((δ₁ ∨ₛ δ₂) :: Δ) α
+axiom S_split : ∀ {α δ₁ δ₂ Δ},
+                Sinf_proof ((δ₁ ∨ₛ δ₂) :: Δ) α →
+                Sinf_proof (δ₂ :: δ₁ :: Δ) α
 
-notation:25 ctx:25 " ⊢ₛ " α:28 => Sinf_proof ctx α
+axiom S_out : ∀ {α δ Δ},
+              Sinf_proof (δ :: Δ) α →
+              Sinf_proof Δ (δ ∨ₛ α)
+axiom S_in : ∀ {α δ Δ},
+             Sinf_proof Δ (δ ∨ₛ α) →
+             Sinf_proof (δ :: Δ) α
+
+axiom S_exchange_ctx : ∀ {α δ Δ},
+                       Sinf_proof (δ :: Δ) α →
+                       Sinf_proof (α :: Δ) δ
+axiom S_contraction_ctx : ∀ {α Δ},
+                          Sinf_proof (α :: Δ) α →
+                          Sinf_proof Δ α
+
+notation:25 ctx:25 " ⋁ " α:28 => Sinf_proof ctx α

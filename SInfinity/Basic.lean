@@ -74,7 +74,7 @@ namespace Sinf
 
 end Sinf
 
-notation:45 α "[" x " ≔ " θ "]" => Sinf.subst α x θ
+notation:45 α " [" x " ≔ " θ "]" => Sinf.subst α x θ
 
 open Sinf_term
 
