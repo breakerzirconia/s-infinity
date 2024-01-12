@@ -4,32 +4,19 @@ import Std.Data.AssocList
 import SInfinity.Basic
 import SInfinity.Util
 
+def Ctx := List
+
 notation:max "Ø" => List.nil
 -- infixl:25 " ∨ᶜ " => λ ss s ↦ List.cons s ss
 
-inductive NoVars : Sinf_term → Prop where
-  | NV_zero : NoVars O
-  | NV_succ : ∀ {t}, NoVars t → NoVars (S t)
-  | NV_plus : ∀ {θ₁ θ₂}, NoVars θ₁ → NoVars θ₂ → NoVars (θ₁ +ₛ θ₂)
-  | NV_times : ∀ {θ₁ θ₂}, NoVars θ₁ → NoVars θ₂ → NoVars (θ₁ *ₛ θ₂)
-
-namespace NoVars
-
-theorem fromNat {n : Nat} : NoVars (Sinf_term.fromNat n) := by
-  induction n <;> simp <;> constructor
-
-end NoVars
-
-inductive Sinf_proof : List Sinf → Sinf → Prop where
+inductive Sinf_proof : Ctx Sinf → Sinf → Prop where
   | S_axiom : ∀ {θ₁ θ₂ Δ},
-              NoVars θ₁ →
-              NoVars θ₂ →
-              Sinf_term.eval θ₁ Std.AssocList.nil = Sinf_term.eval θ₂ Std.AssocList.nil →
+              ∀ (nv₁ : NoVars θ₁) (nv₂ : NoVars θ₂),
+              Sinf_const.eval (Sinf_const.coerce θ₁ nv₁) = Sinf_const.eval (Sinf_const.coerce θ₂ nv₂) →
               Sinf_proof Δ (θ₁ =ₛ θ₂)
   | S_axiom_neg : ∀ {θ₁ θ₂ Δ},
-                  NoVars θ₁ →
-                  NoVars θ₂ →
-                  Sinf_term.eval θ₁ Std.AssocList.nil ≠ Sinf_term.eval θ₂ Std.AssocList.nil →
+                  ∀ (nv₁ : NoVars θ₁) (nv₂ : NoVars θ₂),
+                  Sinf_const.eval (Sinf_const.coerce θ₁ nv₁) ≠ Sinf_const.eval (Sinf_const.coerce θ₂ nv₂) →
                   Sinf_proof Δ (¬ₛ θ₁ =ₛ θ₂)
 
   | S_weakening : ∀ α {δ Δ},

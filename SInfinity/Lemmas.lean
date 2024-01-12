@@ -4,7 +4,7 @@ import SInfinity.Proof
 
 namespace Sinf_term
 
-theorem succ_inj {θ₁ θ₂ : Sinf_term} : S θ₁ = S θ₂ → θ₁ = θ₂ := by
+theorem succ_inj {θ₁ θ₂ : Sinf_term} : θ₁↗ = θ₂↗ → θ₁ = θ₂ := by
   induction θ₁ <;> induction θ₂ <;> simp at *
 
 end Sinf_term
@@ -96,41 +96,46 @@ theorem eq_trans : ∀ {θ₁} θ₂ {θ₃ Δ},
   cases _12
   case S_axiom nv₁ nv₂ e =>
     cases _23
-    case S_axiom nv₃ e' =>
+    case S_axiom nv₂' nv₃ e' =>
       constructor <;> try assumption
+      rw [NoVars.unique nv₂ nv₂'] at e
       exact (Eq.trans e e')
     case S_weakening ne => exact (S_weakening (θ₁ =ₛ θ₃) ne)
   case S_weakening ne => exact (S_weakening (θ₁ =ₛ θ₃) ne)
 
 theorem succ_cong : ∀ {θ₁ θ₂ Δ},
                     Δ ⋁ θ₁ =ₛ θ₂ →
-                    Δ ⋁ S θ₁ =ₛ S θ₂ := by
+                    Δ ⋁ θ₁↗ =ₛ θ₂↗ := by
   intros θ₁ θ₂ Δ _12
   cases _12
   case S_axiom nv₁ nv₂ e =>
-    constructor <;> try constructor
-    simp
-    apply (congrArg (Option.map Nat.succ))
+    constructor <;> try constructor <;> try assumption
+    simp at *
     assumption
-  case S_weakening ne => exact (S_weakening (S θ₁ =ₛ S θ₂) ne)
+  case S_weakening ne => exact (S_weakening (θ₁↗ =ₛ θ₂↗) ne)
 
 theorem succ_inj : ∀ {θ₁ θ₂ Δ},
-                   Δ ⋁ S θ₁ =ₛ S θ₂ →
+                   Δ ⋁ θ₁↗ =ₛ θ₂↗ →
                    Δ ⋁ θ₁ =ₛ θ₂ := by
   intros θ₁ θ₂ Δ _12
   cases _12
   case S_axiom nv₁ nv₂ e =>
-    constructor <;> sorry
+    cases nv₁; cases nv₂; constructor <;> try assumption
+    simp at e
+    assumption
   case S_weakening ne => exact (S_weakening (θ₁ =ₛ θ₂) ne)
 
 theorem consistent : ∃ α, ¬ (Ø ⋁ α) := by
   exists (¬ₛ O =ₛ O)
   intros p
   cases p
-  case S_axiom_neg p => exact p rfl
+  case S_axiom_neg nv₁ nv₂ p =>
+    rw [NoVars.unique nv₁ nv₂] at p
+    exact p rfl
 
-theorem contradiction_yields_anything :
-  ∀ {α β Δ}, Δ ⋁ ¬ₛ (α ∨ₛ ¬ₛ α) → Δ ⋁ β := by
+theorem contradiction_yields_anything : ∀ {α β Δ},
+                                        Δ ⋁ ¬ₛ (α ∨ₛ ¬ₛ α) →
+                                        Δ ⋁ β := by
   intros α β Δ contr
   have iβ := S_inr β contr
   have s_return := S_in iβ
@@ -143,50 +148,67 @@ theorem contradiction_yields_anything :
 
 theorem var_refl : Ø ⋁ (∀ₛ a ; _ a =ₛ _ a) := by
   apply S_induction; intros n
-  constructor <;> simp <;> rw [String.decEq_refl a] <;> simp <;> apply NoVars.fromNat
+  constructor <;> simp <;> try rw [String.decEq_refl a] <;> apply NoVars.fromNat
+  rfl
+
+theorem refl {θ} (nv : NoVars θ) : Ø ⋁ θ =ₛ θ := by
+  induction nv
+  case O => constructor <;> try constructor
+  case S nv =>
+    rcases nv with ⟨nv₁, nv₂, e⟩
+    constructor <;> try constructor
+    assumption
+  case plus nv₁ nv₂ =>
+    rcases nv₁ with ⟨nv₁₁, nv₁₂, e₁⟩
+    rcases nv₂ with ⟨nv₂₁, nv₂₂, e₂⟩
+    constructor <;> try constructor <;> try assumption
+  case times nv₁ nv₂ =>
+    rcases nv₁ with ⟨nv₁₁, nv₁₂, e₁⟩
+    rcases nv₂ with ⟨nv₂₁, nv₂₂, e₂⟩
+    constructor <;> try constructor <;> try assumption
 
 theorem plus_comm : Ø ⋁ ∀ₛ a ; ∀ₛ b ; _ a +ₛ _ b =ₛ _ b +ₛ _ a := by
   apply S_induction; intros n; simp
   cases (String.decEq a b)
   case a.isFalse nab =>
     simp
-    cases String.decEq a a
-    case isFalse c => contradiction
-    case isTrue _ =>
-      simp; apply S_induction; intros m; simp
-      cases String.decEq b b <;> simp
-      · contradiction
-      · induction n <;> induction m <;> simp
-        · constructor <;> constructor
-        case a.isTrue.zero.succ ih =>
-          cases ih
-          case S_axiom nv1 nv2 e =>
-            constructor <;> try constructor
-            simp at *
-            sorry
-        case a.isTrue.succ n ih => sorry
-        case a.isTrue.succ.succ n m ihn ihm => sorry
+    rw [String.decEq_refl a]; simp
+    apply S_induction; intros m; simp
+    rw [String.decEq_refl b]; simp
+    induction n <;> induction m <;> simp at *
+    case a.zero.zero =>
+      constructor <;> constructor <;> constructor
+    case a.zero.succ n ih =>
+      rcases ih with ⟨⟨⟩, ⟨⟩, e⟩
+      constructor <;> try constructor <;> try constructor <;> try assumption
+      simp at *
+    case a.succ.zero n ih =>
+      rcases ih with ⟨⟨⟩, ⟨⟩, e⟩
+      constructor <;> try constructor <;> try constructor <;> try assumption
+      simp at *
+    case a.succ.succ n m ihn ihm =>
+      sorry
   case a.isTrue ab =>
     simp; rw [ab]
     apply S_induction; simp
-    cases String.decEq b b
-    case a.isFalse => contradiction
-    case a.isTrue =>
-      simp; intros n
-      constructor <;> constructor
+    rw [String.decEq_refl b]; simp
+    intros n; constructor <;> constructor <;> apply NoVars.fromNat
 
-theorem succ_ne_zero : Ø ⋁ ∀ₛ a ; ¬ₛ (S (_ a) =ₛ O) := by
+theorem succ_ne_zero : Ø ⋁ ∀ₛ a ; ¬ₛ (_ a ↗ =ₛ O) := by
   apply S_induction; intros n
   induction n <;> simp at *
   case a.zero =>
     rw [String.decEq_refl a]; simp
-    constructor <;> try constructor
-    intros h; contradiction
+    constructor <;> try constructor <;> try constructor
+    intros p
+    contradiction
   case a.succ n ih =>
     rw [String.decEq_refl a] at *; simp at *
     cases ih
     case S_axiom_neg nv1 nv2 e =>
-      constructor <;> try constructor
-      simp
+      constructor <;> try constructor <;> try assumption
+      intros p
+      contradiction
+
 
 end Sinf
